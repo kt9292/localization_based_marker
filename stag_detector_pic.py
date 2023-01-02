@@ -2,6 +2,7 @@ import pyStag as stag
 import cv2
 import numpy as np
 import math
+import os
 
 def inversePerspective(rvec, tvec):
     R, _ = cv2.Rodrigues(rvec)
@@ -118,7 +119,7 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
                 for p in composedTvec:
                     relative_position.append(p[0])
                 relative_position_str = f'({relative_position[0]:.3f}, {relative_position[1]:.3f}, {relative_position[2]:.3f})'
-                # print(f'marker_id:{int(t[j][0][0][3])}\trelative_position:{relative_position_str}\tdistance:{distance}')
+                print(f'marker_id:{int(t[j][0][0][3])}\trelative_position:{relative_position_str}\tdistance:{distance}')
                     
                 frame = cv2.putText(frame, distance,(int(abs(center[0]+origin_center[0])/2), int(abs(center[1] + origin_center[1])/2)),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(0, 0, 255), 2, cv2.LINE_4)
                 frame = cv2.putText(frame, relative_position_str, (int(center[0]), int(center[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 0, 0), 2, cv2.LINE_4)
@@ -129,24 +130,29 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
     return frame
 
 
-cam = cv2.VideoCapture(0)
-# cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-# cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_logitech2.txt", dtype=float)
-distortion_matrix = np.loadtxt("./config/distortion_matrix_logitech2.txt", dtype=float)
 
 
-while(True):
-    _, frame = cam.read()
-    print(frame.shape)
+intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_logitech.txt", dtype=float)
+distortion_matrix = np.loadtxt("./config/distortion_matrix_logitech.txt", dtype=float)
+
+file_path = "./sample"
+file_list = os.listdir(file_path)
+imgs_path = []
+output_path = "./result"
+
+for f in file_list:
+    img = f'{file_path}/{f}'
+    imgs_path.append(img)
+
+for i in imgs_path:
+    print(i)
+    frame = cv2.imread(i, cv2.IMREAD_COLOR)
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
     frame, origin_center ,stag_centers, tvecs, rvecs = find_stag(frame)
     frame = cal_distance(frame, origin_center ,stag_centers, tvecs, rvecs) 
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)        
-
-    cv2.imshow("test", frame)
-
-    if cv2.waitKey(1) == ord('q'):
-        break
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    output_name = f'{i[9:-4]}_result.jpg'
+    print(f'result saved at {output_path}/{output_name}')
+    cv2.imwrite(f'{output_path}/{output_name}', frame)
 
