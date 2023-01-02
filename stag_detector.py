@@ -19,9 +19,6 @@ def relativePosition(rvec1, tvec1, rvec2, tvec2):
     # Inverse the second marker, the right one in the image
     invRvec, invTvec = inversePerspective(rvec2, tvec2)
 
-    orgRvec, orgTvec = inversePerspective(invRvec, invTvec)
-    # print("rvec: ", rvec2, "tvec: ", tvec2, "\n and \n", orgRvec, orgTvec)
-
     info = cv2.composeRT(rvec1, tvec1, invRvec, invTvec)
     composedRvec, composedTvec = info[0], info[1]
 
