@@ -1,38 +1,33 @@
 import pyStag as stag
 import cv2
 import numpy as np
-import pandas as pd
 import math
 
-def isRotationMatrix(R):
-    Rt = np.transpose(R)
-    shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3, dtype=R.dtype)
-    n = np.linalg.norm(I - shouldBeIdentity)
-    return n < 1e-6
+def inversePerspective(rvec, tvec):
+    R, _ = cv2.Rodrigues(rvec)
+    R = np.matrix(R).T
+    invTvec = np.dot(-R, np.matrix(tvec))
+    invRvec, _ = cv2.Rodrigues(R)
+    return invRvec, invTvec
 
-def rotationMatrixToEulerAngles(R):
-    assert (isRotationMatrix(R))
 
-    sy = math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
+def relativePosition(rvec1, tvec1, rvec2, tvec2):
+    rvec1, tvec1 = rvec1.reshape((3, 1)), tvec1.reshape(
+        (3, 1))
+    rvec2, tvec2 = rvec2.reshape((3, 1)), tvec2.reshape((3, 1))
 
-    singular = sy < 1e-6
+    # Inverse the second marker, the right one in the image
+    invRvec, invTvec = inversePerspective(rvec2, tvec2)
 
-    if not singular:
-        x = math.atan2(R[2, 1], R[2, 2])
-        y = math.atan2(-R[2, 0], sy)
-        z = math.atan2(R[1, 0], R[0, 0])
-    else:
-        x = math.atan2(-R[1, 2], R[1, 1])
-        y = math.atan2(-R[2, 0], sy)
-        z = 0
+    orgRvec, orgTvec = inversePerspective(invRvec, invTvec)
+    # print("rvec: ", rvec2, "tvec: ", tvec2, "\n and \n", orgRvec, orgTvec)
 
-    return np.array([x, y, z])
+    info = cv2.composeRT(rvec1, tvec1, invRvec, invTvec)
+    composedRvec, composedTvec = info[0], info[1]
 
-R_flip  = np.zeros((3,3), dtype=np.float32)
-R_flip[0,0] = 1.0
-R_flip[1,1] =-1.0
-R_flip[2,2] =-1.0
+    composedRvec = composedRvec.reshape((3, 1))
+    composedTvec = composedTvec.reshape((3, 1))
+    return composedRvec, composedTvec
 
 def find_stag(frame):
     grayimg = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -46,15 +41,16 @@ def find_stag(frame):
     # remove duplicate ids and coners
     if len(ids) != 0:
         unique_dict = dict(zip(ids, coners))
-        for id, coner in unique_dict.items():
+        
+        # ordered dict
+        unique_dict = sorted(unique_dict.items())
+        for id, coner in unique_dict:
             unique_ids.append(id)
             unique_coners.append(coner)
-        # print(f'unique_dict: {unique_dict}\n')
-        # print(f'unique_ids:{unique_ids} \t unique_coners:{unique_coners}\n')
 
     centers = []
     i = 0
-    O_center = []
+    origin_center = []
     tvecs = []
     rvecs = []
     for bbx, id in zip(unique_coners, unique_ids):
@@ -85,69 +81,53 @@ def find_stag(frame):
 
         # if i % 4 == 3:
         if id == 0:
-            O_center = center
-            O_center.append(id)
+            origin_center = center
+            origin_center.append(id)
         else :
             center.append(id)
             centers.append(center)
 
         i += 1
 
-    return frame, O_center ,centers, tvecs, rvecs
+    return frame, origin_center ,centers, tvecs, rvecs
 
 def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
     t = np.array(tvecs)
     r = np.array(rvecs)
-    # if len(t) != 0:
-    #     print(f't:{t}\t len(t):{len(t)}\t t[0]:{t[0]}\t t[0][0]:{t[0][0][0][3]}\n')
     
     for i in range(0, len(t)):
         if(int(t[i][0][0][3]) == 0):
             tvec0 = t[i][:,:,:3]
-            # print(f't[i]:{t[i]}\t tvec0: {tvec0} \n')
-            R_ct = np.matrix(cv2.Rodrigues(r[i])[0])
-            R_ct = R_ct.T
-            roll, pitch, yaw = rotationMatrixToEulerAngles(R_flip*R_ct)
-            A = ([math.cos(roll),math.cos(pitch),math.cos(yaw)])
-            print(f'tvec0: {tvec0}\n')
-            print(f'A: {A}\n')
+            rvec0 = r[i]
 
-        if(int(t[i][0][0][3]) == 1):
-            tvec1 = t[i][:,:,:3]
-            # print(f't[i]:{t[i]}\t tvec0: {tvec0} \n')
-            R_ct = np.matrix(cv2.Rodrigues(r[i])[0])
-            R_ct = R_ct.T
-            roll, pitch, yaw = rotationMatrixToEulerAngles(R_flip*R_ct)
-            B = ([math.cos(roll),math.cos(pitch),math.cos(yaw)])
-            print(f'tvec1: {tvec1}\n')
-            print(f'B: {B}\n')
+            for center, j in zip(centers, range(i+1, len(t))):    
+                tvec1 = t[j][:,:,:3]
+                rvec1 = r[j]
 
-            tvec0_x = tvec0[0][0][0]
-            tvec0_y = tvec0[0][0][1]
-            tvec0_z = tvec0[0][0][2]
-            tvec1_x = tvec1[0][0][0]
-            tvec1_y = tvec1[0][0][1]
-            tvec1_z = tvec1[0][0][2]
-            dist1 = math.sqrt(pow((tvec0_x-tvec1_x),2)+pow((tvec0_y-tvec1_y),2)+pow((tvec0_z-tvec1_z),2))
-            distanza1= "Dist=%4.0f"%(dist1)
-            #secondo metodo per il calcolo della distanza
-            #
-            distanza= "Dist=%4.0f"%(np.linalg.norm(tvec1-tvec0))
-            cv2.putText(frame, distanza1,(50, 100),cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 2, cv2.LINE_4)
-            dot_product = np.dot(A,B,out=None)
-            normA = (np.linalg.norm(A))
-            normB = (np.linalg.norm(B))
-            cos_angolo = dot_product/(normA*normB)
-            angolo_rad = np.arccos(cos_angolo)
-            angolo_deg = np.rad2deg(angolo_rad)
-            if (angolo_deg > 90):
-                angolo_deg = 180 - angolo_deg
-            ang = "Ang=%4.1f"%(angolo_deg)
-            cv2.putText(frame,ang ,(50, 150),cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 2, cv2.LINE_4)
+                # calculate relative position of marker from origin marker
+                composedRvec, composedTvec = relativePosition(rvec0, tvec0, rvec1, tvec1)
 
-    for center in centers:
-        if(len(center) !=0 and len(origin_center) != 0):
-            frame = cv2.line(frame, (origin_center[0],origin_center[1]), (center[0], center[1]), (255,255,0), 2)
+                tvec0_x = tvec0[0][0][0]
+                tvec0_y = tvec0[0][0][1]
+                tvec0_z = tvec0[0][0][2]
+                tvec1_x = tvec1[0][0][0]
+                tvec1_y = tvec1[0][0][1]
+                tvec1_z = tvec1[0][0][2]
+                dist1 = math.sqrt(pow((tvec0_x-tvec1_x),2)+pow((tvec0_y-tvec1_y),2)+pow((tvec0_z-tvec1_z),2))
+                distance= f'{dist1*100:.2f}cm'
+                # print(f'composedRvec\n{composedRvec}\ncomposedTvec\n{composedTvec[0][0]}\n')
+                # print(f'dist: {dist1}\n')
+                relative_position = []
+                for p in composedTvec:
+                    relative_position.append(p[0])
+                relative_position_str = f'({relative_position[0]:.3f}, {relative_position[1]:.3f}, {relative_position[2]:.3f})'
+                print(f'marker_id:{int(t[j][0][0][3])}\trelative_position:{relative_position_str}\tdistance:{distance}')
+                    
+                frame = cv2.putText(frame, distance,(int(abs(center[0]+origin_center[0])/2), int(abs(center[1] + origin_center[1])/2)),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(0, 0, 255), 2, cv2.LINE_4)
+                frame = cv2.putText(frame, relative_position_str, (int(center[0]), int(center[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,(0, 0, 255), 2, cv2.LINE_4)
+                frame = cv2.line(frame, (origin_center[0],origin_center[1]), (center[0], center[1]), (255,255,0), 2)
+        else:
+            pass
 
     return frame
 
