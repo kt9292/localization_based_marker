@@ -130,15 +130,15 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
 
 
 cam = cv2.VideoCapture(0)
-# cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-# cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_logitech2.txt", dtype=float)
-distortion_matrix = np.loadtxt("./config/distortion_matrix_logitech2.txt", dtype=float)
+cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_logitech.txt", dtype=float)
+distortion_matrix = np.loadtxt("./config/distortion_matrix_logitech.txt", dtype=float)
 
 
 while(True):
     _, frame = cam.read()
-    print(frame.shape)
+    # print(frame.shape)
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
     frame, origin_center ,stag_centers, tvecs, rvecs = find_stag(frame)
