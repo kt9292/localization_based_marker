@@ -1,17 +1,16 @@
-import os
+from utils.bg import bg
+import cv2
 
-file_path = "./sample"
-file_list = os.listdir(file_path)
-imgs_path = []
+fg_path = f'./bg/2.mp4'
+fg = bg(fg_path)
 
-print(file_list)
+bg = cv2.VideoCapture(0)
 
-for f in file_list:
-    img = f'{file_path}/{f}'
-    imgs_path.append(img)
+while True:
+    _, frame = bg.read()
+    result = fg.run(frame)
 
-for i in imgs_path:
-    print(i[9:-4])
+    cv2.imshow('test', result)
 
-
-print(imgs_path)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
