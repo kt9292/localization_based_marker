@@ -1,3 +1,6 @@
 sample.py
 sample2.py
 black.py
+filter/*
+result/*
+utils/__pycache__/bg.cpython-39.pyc

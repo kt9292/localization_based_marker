@@ -2,6 +2,8 @@ import pyStag as stag
 import cv2
 import numpy as np
 import math
+import csv
+import os
 
 def inversePerspective(rvec, tvec):
     R, _ = cv2.Rodrigues(rvec)
@@ -38,7 +40,6 @@ def find_stag(frame):
 
     unique_ids = []
     unique_coners = []
-
     # remove duplicate ids and coners
     if len(ids) != 0:
         unique_dict = dict(zip(ids, coners))
@@ -98,13 +99,13 @@ def find_stag(frame):
 def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
     t = np.array(tvecs)
     r = np.array(rvecs)
-    
+    relative_position = []
     for i in range(0, len(t)):
         if(int(t[i][0][0][3]) == 0):
             # tvec0, rvec0 : transformation vectors of id 0
             tvec0 = t[i][:,:,:3]
             rvec0 = r[i]
-
+            
             for center, j in zip(centers, range(i+1, len(t))):
                 # tvec1, rvec1 : transformation vectors of id n    
                 tvec1 = t[j][:,:,:3]
@@ -123,10 +124,11 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
                 
                 # calculate relative position of marker from origin marker
                 composedRvec, composedTvec = relativePosition(rvec0, tvec0, rvec1, tvec1)
-                relative_position = []
+                
                 for p in composedTvec:
-                    relative_position.append(p[0])
-                relative_position_str = f'({relative_position[0]:.3f}, {relative_position[1]:.3f}, {relative_position[2]:.3f})'
+                    relative_position.append(f'{p[0]:.3f}')
+                relative_position.append(int(t[j][0][0][3]))
+                relative_position_str = f'({relative_position[0]}, {relative_position[1]}, {relative_position[2]})'
         
                     
                 frame = cv2.putText(frame, distance,(int(abs(center[0]+origin_center[0])/2), int(abs(center[1] + origin_center[1])/2)),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(0, 0, 255), 2, cv2.LINE_4)
@@ -135,7 +137,7 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
         else:
             pass
 
-    return frame
+    return frame , relative_position
 
 
 
@@ -148,6 +150,10 @@ cam = cv2.VideoCapture(0)
 cam.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
 cam.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
+size = (CAMERA_WIDTH, CAMERA_HEIGHT)
+result = cv2.VideoWriter('filename.avi',cv2.VideoWriter_fourcc(*'MJPG'),10, size)
+
+i = 0
 
 while(True):
     _, frame = cam.read()
@@ -155,8 +161,24 @@ while(True):
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
     frame, origin_center ,stag_centers, tvecs, rvecs = find_stag(frame)
-    frame = cal_distance(frame, origin_center ,stag_centers, tvecs, rvecs) 
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)        
+    frame, relative_position = cal_distance(frame, origin_center ,stag_centers, tvecs, rvecs)
+    
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # if len(relative_position) == 8:
+    #     relative_position.append(i)
+    #     if os.path.isfile('./result/stag_result.csv') == False:
+    #         with open('./result/stag_result.csv', 'w', newline='') as f:
+    #             writer = csv.writer(f)
+    #             writer.writerow(relative_position)
+    #     else:
+    #         with open('./result/stag_result.csv', 'a', newline='') as f:
+    #             writer = csv.writer(f)
+    #             writer.writerow(relative_position)
+    #     cv2.imwrite(f'./result/stag_{i}.jpg', frame)
+    #     i+= 1
+    
+    # result.write(frame)   
 
     cv2.imshow("test", frame)
 

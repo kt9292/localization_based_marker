@@ -6,13 +6,16 @@ class bg:
         self.path = fg_path
         self.fg = cv2.VideoCapture(self.path)
         self.fg_length = int(self.fg.get(cv2.CAP_PROP_FRAME_COUNT))
+        print(self.fg_length)
         
-    def run(self, frame):
+    def run(self, frame, level):
+        print(int(self.fg.get(cv2.CAP_PROP_POS_FRAMES)))
         if self.fg_length == int(self.fg.get(cv2.CAP_PROP_POS_FRAMES)):
-            self.fg.set(cv2.CAP_PROP_FRAME_COUNT, 0)
+            print('reset')
+            self.fg.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
         ret, foreground = self.fg.read()
-        foreground = cv2.resize(foreground, (640,480), interpolation = cv2.INTER_AREA)
+        # foreground = cv2.resize(foreground, (640,480), interpolation = cv2.INTER_AREA)
         
         # creating the alpha mask
         alpha = np.zeros_like(foreground)
@@ -27,7 +30,7 @@ class bg:
 
         # normalizing the alpha mask inorder
         # to keep intensity between 0 and 1
-        alpha = alpha.astype(float)/255
+        alpha = alpha.astype(float)/255*level
 
         # multiplying the forground
         # with alpha matte
@@ -40,8 +43,7 @@ class bg:
         # adding the masked foreground
         # and origin frame together
         outImage = cv2.add(foreground, frame)
-        result = outImage/255
 
-        return result
+        return outImage
 
 
