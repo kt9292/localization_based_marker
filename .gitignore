@@ -4,3 +4,8 @@ black.py
 filter/*
 result/*
 utils/__pycache__/bg.cpython-39.pyc
+*.mp4
+*.jpg
+*.avi
+sample/*
+

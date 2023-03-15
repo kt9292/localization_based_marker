@@ -68,7 +68,7 @@ def find_stag(frame):
         bbx_for_axis = np.rint(np.array(bbx).reshape(1,4,2))
         # rvec : rotation vector , tvec : trasformation vector
         # estimatePoseSingleMarkers(marker edge point, markerLength, intrinsic matrix, distortion matrix)
-        rvec, tvec, marker_points = cv2.aruco.estimatePoseSingleMarkers(bbx_for_axis, 0.08, intrinsic_matrix, distortion_matrix)
+        rvec, tvec, marker_points = cv2.aruco.estimatePoseSingleMarkers(bbx_for_axis, 0.238, intrinsic_matrix, distortion_matrix)
 
         tvec_added_id = np.append(tvec,id).reshape(1,1,4)
 
@@ -77,6 +77,7 @@ def find_stag(frame):
 
         cv2.drawFrameAxes(frame, intrinsic_matrix, distortion_matrix, rvec, tvec, 0.04)
 
+        # if id == 0:
         frame = cv2.line(frame,top_left, top_right,(255,255,0),1)
         frame = cv2.line(frame,top_right,bottom_right,(255,225,0),1)
         frame = cv2.line(frame,bottom_right,bottom_left,(255,0,225),1)
@@ -121,6 +122,7 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
                 # calculate distacne between id:0 with id:n
                 dist1 = math.sqrt(pow((tvec0_x-tvec1_x),2)+pow((tvec0_y-tvec1_y),2)+pow((tvec0_z-tvec1_z),2))
                 distance= f'{dist1*100:.2f}cm'
+                print(distance)
                 
                 # calculate relative position of marker from origin marker
                 composedRvec, composedTvec = relativePosition(rvec0, tvec0, rvec1, tvec1)
@@ -130,7 +132,7 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
                 relative_position.append(int(t[j][0][0][3]))
                 relative_position_str = f'({relative_position[0]}, {relative_position[1]}, {relative_position[2]})'
         
-                    
+                
                 frame = cv2.putText(frame, distance,(int(abs(center[0]+origin_center[0])/2), int(abs(center[1] + origin_center[1])/2)),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(0, 0, 255), 2, cv2.LINE_4)
                 frame = cv2.putText(frame, relative_position_str, (int(center[0]), int(center[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 0, 0), 2, cv2.LINE_4)
                 frame = cv2.line(frame, (origin_center[0],origin_center[1]), (center[0], center[1]), (255,255,0), 2)
@@ -142,21 +144,24 @@ def cal_distance(frame, origin_center ,centers, tvecs, rvecs):
 
 
 # camera config
-intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_logitech.txt", dtype=float)
-distortion_matrix = np.loadtxt("./config/distortion_matrix_logitech.txt", dtype=float)
-CAMERA_WIDTH = 1280
-CAMERA_HEIGHT = 720
-cam = cv2.VideoCapture(0)
-cam.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-cam.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_cali_underwater.txt", dtype=float)
+distortion_matrix = np.loadtxt("./config/distortion_matrix_cali_underwater.txt", dtype=float)
 
-size = (CAMERA_WIDTH, CAMERA_HEIGHT)
-result = cv2.VideoWriter('filename.avi',cv2.VideoWriter_fourcc(*'MJPG'),10, size)
+path = "./sample"
+filename = '230310_stag_2_720p_Ushape.mp4'
+cap = cv2.VideoCapture(f'{path}/{filename}')
+w = round(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+h = round(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = cap.get(cv2.CAP_PROP_FPS)
+fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+size = (w, h)
+
+result = cv2.VideoWriter(f'./result/{filename.split(".")[0]}_result.mp4',fourcc, fps, size)
 
 i = 0
 
 while(True):
-    _, frame = cam.read()
+    _, frame = cap.read()
     # print(frame.shape)
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
@@ -165,20 +170,20 @@ while(True):
     
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # if len(relative_position) == 8:
-    #     relative_position.append(i)
-    #     if os.path.isfile('./result/stag_result.csv') == False:
-    #         with open('./result/stag_result.csv', 'w', newline='') as f:
-    #             writer = csv.writer(f)
-    #             writer.writerow(relative_position)
-    #     else:
-    #         with open('./result/stag_result.csv', 'a', newline='') as f:
-    #             writer = csv.writer(f)
-    #             writer.writerow(relative_position)
-    #     cv2.imwrite(f'./result/stag_{i}.jpg', frame)
-    #     i+= 1
+    if len(relative_position) == 8:
+        relative_position.append(i) 
+        if os.path.isfile(f'./result/{filename.split(".")}_result.csv') == False:
+            with open(f'./result/{filename.split(".")}_result.csv', 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(relative_position)
+        else:
+            with open(f'./result/{filename.split(".")}_result.csv', 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(relative_position)
+        cv2.imwrite(f'./result/{filename.split(".")}_{i}.jpg', frame)
+        i+= 1
     
-    # result.write(frame)   
+    result.write(frame)   
 
     cv2.imshow("test", frame)
 

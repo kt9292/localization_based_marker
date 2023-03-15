@@ -4,10 +4,10 @@ import numpy as np
 import time
 from utils.bg import bg 
 
-def find_aruco(frame, marker_size=4, total_markers=250, draw=True):
+def find_aruco(frame, marker_size=6, total_markers=250, draw=True):
     grayimg = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # key = getattr(cv2.aruco, f'DICT_{marker_size}X{marker_size}_{total_markers}')
-    key = getattr(cv2.aruco, "DICT_ARUCO_ORIGINAL")
+    key = getattr(cv2.aruco, f'DICT_{marker_size}X{marker_size}_{total_markers}')
+    # key = getattr(cv2.aruco, "DICT_ARUCO_ORIGINAL")
     aruco_dict = cv2.aruco.Dictionary_get(key)
     aruco_param = cv2.aruco.DetectorParameters_create()
     bbox, ids, _ = cv2.aruco.detectMarkers(grayimg, aruco_dict, parameters=aruco_param)
@@ -30,8 +30,8 @@ def find_aruco(frame, marker_size=4, total_markers=250, draw=True):
             center = [int((top_left[0] + bottom_right[0]) / 2.0), int((top_left[1] + bottom_right[1]) / 2.0)]
             centers.append(center)            
 
-            rvec, tvec, marker_points = cv2.aruco.estimatePoseSingleMarkers(bbx, 0.129, intrinsic_matrix, distortion_matrix)
-            cv2.drawFrameAxes(frame, intrinsic_matrix, distortion_matrix, rvec, tvec, 0.05)
+            # rvec, tvec, marker_points = cv2.aruco.estimatePoseSingleMarkers(bbx, 0.129, intrinsic_matrix, distortion_matrix)
+            # cv2.drawFrameAxes(frame, intrinsic_matrix, distortion_matrix, rvec, tvec, 0.05)
 
             frame = cv2.line(frame,top_left, top_right,(255,255,0),1)
             frame = cv2.line(frame,top_right,bottom_right,(255,225,0),1)
@@ -66,8 +66,6 @@ def find_stag(frame):
 
         bbx_for_axis = np.rint(np.array(bbx).reshape(1,4,2)) 
 
-        rvec, tvec, marker_points = cv2.aruco.estimatePoseSingleMarkers(bbx_for_axis, 0.129, intrinsic_matrix, distortion_matrix)
-        cv2.drawFrameAxes(frame, intrinsic_matrix, distortion_matrix, rvec, tvec, 0.04)
 
         frame = cv2.line(frame,top_left, top_right,(255,255,0),1)
         frame = cv2.line(frame,top_right,bottom_right,(255,225,0),1)
@@ -89,34 +87,27 @@ def find_stag(frame):
     return frame, O_center ,centers
 
 now = time
-fg_name = '5'
-level = 4
-fg_path = f'./bg/{fg_name}.mp4'
-fg = bg(fg_path)
-
+path = "./sample"
+filename = "230223_aruco_test.mp4"
 # camera config
-intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_logitech.txt", dtype=float)
-distortion_matrix = np.loadtxt("./config/distortion_matrix_logitech.txt", dtype=float)
-CAMERA_WIDTH = 1280
-CAMERA_HEIGHT = 720
 
-cam = cv2.VideoCapture('origin.webm')
-cam.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-cam.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+cam = cv2.VideoCapture(f'{path}/{filename}')
 
-size = (CAMERA_WIDTH, CAMERA_HEIGHT)
-result = cv2.VideoWriter(f'result_{fg_name}_{level}.mp4',cv2.VideoWriter_fourcc(*'mp4v'),10, size)
-origin = cv2.VideoWriter(f'origin_{fg_name}_{level}.mp4',cv2.VideoWriter_fourcc(*'mp4v'),10, size)
+w = round(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
+h = round(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+fps = cam.get(cv2.CAP_PROP_FPS)
+
+result = cv2.VideoWriter(f'{filename.split(".")[0]}_result.mp4',fourcc,fps, (w, h))
+
 
 
 while(True):
     _, frame = cam.read()
-    frame = fg.run(frame,level)
-    frame = np.uint8(frame)
-    origin.write(frame)
+    
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     # frame = cv2.blur(src=frame, ksize=(10, 10))
-    # frame, aruco_centers = find_aruco(frame)
+    frame, aruco_centers = find_aruco(frame)
     # frame = find_aruco2(frame)
 
     frame, origin_center ,stag_centers = find_stag(frame)
@@ -125,7 +116,7 @@ while(True):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)     
     
     # Capture Video
-    # result.write(frame)   
+    result.write(frame)   
     
     # Take a pic
     # if cv2.waitKey(1) == ord('a'):

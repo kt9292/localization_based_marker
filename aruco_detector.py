@@ -29,10 +29,10 @@ def relativePosition(rvec1, tvec1, rvec2, tvec2):
 
 
 
-def find_aruco(frame, marker_size=4, total_markers=250, draw=True):
+def find_aruco(frame, marker_size=6, total_markers=250, draw=True):
     grayimg = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # key = getattr(cv2.aruco, f'DICT_{marker_size}X{marker_size}_{total_markers}')
-    key = getattr(cv2.aruco, "DICT_ARUCO_ORIGINAL")
+    key = getattr(cv2.aruco, f'DICT_{marker_size}X{marker_size}_{total_markers}')
+    # key = getattr(cv2.aruco, "DICT_ARUCO_ORIGINAL")
     aruco_dict = cv2.aruco.Dictionary_get(key)
     aruco_param = cv2.aruco.DetectorParameters_create()
     bbox, ids, _ = cv2.aruco.detectMarkers(grayimg, aruco_dict, parameters=aruco_param)
@@ -223,12 +223,15 @@ intrinsic_matrix = np.loadtxt("./config/intrinsic_matrix_logitech.txt", dtype=fl
 distortion_matrix = np.loadtxt("./config/distortion_matrix_logitech.txt", dtype=float)
 CAMERA_WIDTH = 1280
 CAMERA_HEIGHT = 720
-cam = cv2.VideoCapture(0)
+
+path = './sample'
+file_name = '230223_aruco.mp4'
+cam = cv2.VideoCapture(f'{path}/{file_name}')
 cam.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
 cam.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
-# size = (CAMERA_WIDTH, CAMERA_HEIGHT)
-# result = cv2.VideoWriter('filename.avi',cv2.VideoWriter_fourcc(*'MJPG'),10, size)
+size = (CAMERA_WIDTH, CAMERA_HEIGHT)
+result = cv2.VideoWriter(f'{file_name.split(".")[0]}_result.mp4',cv2.VideoWriter_fourcc(*'MJPG'),10, size)
 
 i=0
 while(True):
@@ -237,7 +240,7 @@ while(True):
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
     frame, origin_center ,aruco_centers, tvecs, rvecs = find_aruco(frame)
-    frame, relative_position = cal_distance(frame, origin_center ,aruco_centers, tvecs, rvecs) 
+    # frame, relative_position = cal_distance(frame, origin_center ,aruco_centers, tvecs, rvecs) 
     # frame, origin_center2 ,stag_centers, tvecs2, rvecs2 = find_stag(frame)
     # frame = cal_distance(frame, origin_center2 ,stag_centers, tvecs2, rvecs2) 
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)     
@@ -255,7 +258,7 @@ while(True):
     #     cv2.imwrite(f'./result/aruco_{i}.jpg', frame)
     #     i+= 1
 
-    # result.write(frame)   
+    result.write(frame)   
 
     cv2.imshow("test", frame)
 
